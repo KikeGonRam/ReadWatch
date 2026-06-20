@@ -1,6 +1,5 @@
-// Pantalla para registrar un nuevo libro en ReadWatch
-// Formulario estilo smartwatch con campos mínimos y validación completa
-import React, { useState } from 'react';
+// AddBookScreen v2 — Formulario premium para registrar un nuevo libro
+import React, { useState, useRef } from 'react';
 import {
   View,
   Text,
@@ -16,42 +15,33 @@ import COLORS from '../constants/colors';
 import { registerBook } from '../utils/helpers';
 
 /**
- * AddBookScreen — Formulario para registrar un nuevo libro.
- * Valida campos vacíos y páginas inválidas antes de guardar.
- * Regresa a la pantalla anterior tras registrar exitosamente.
- *
- * @param {object} navigation - Objeto de navegación de React Navigation
+ * AddBookScreen v2 — Formulario con diseño premium y navegación con teclado.
+ * Los campos con refs permiten avanzar al siguiente con el botón "siguiente" del teclado.
  */
 export default function AddBookScreen({ navigation }) {
-  // Estado de los campos del formulario
   const [title, setTitle] = useState('');
   const [author, setAuthor] = useState('');
   const [totalPages, setTotalPages] = useState('');
   const [loading, setLoading] = useState(false);
+  // Refs para enfocar el siguiente campo al presionar "siguiente" en el teclado
+  const authorRef = useRef(null);
+  const pagesRef = useRef(null);
 
-  /**
-   * Maneja el guardado del libro.
-   * Llama a registerBook que incluye todas las validaciones.
-   * Navega atrás solo si el registro fue exitoso.
-   */
   const handleSave = async () => {
     if (loading) return;
     setLoading(true);
-
-    // registerBook valida y muestra Alerts de error si corresponde
     const newBook = await registerBook(title, author, totalPages);
-
     setLoading(false);
-
-    // Solo navegar si el libro fue creado exitosamente
     if (newBook) {
-      // Limpiar campos y volver a la lista
       setTitle('');
       setAuthor('');
       setTotalPages('');
       navigation.goBack();
     }
   };
+
+  // Calcular si el formulario está completo para habilitar el botón
+  const isFormValid = title.trim() && author.trim() && totalPages.trim();
 
   return (
     <KeyboardAvoidingView
@@ -64,72 +54,82 @@ export default function AddBookScreen({ navigation }) {
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
       >
-        {/* Ícono decorativo tipo reloj */}
-        <View style={styles.iconCircle}>
-          <Text style={styles.iconText}>📖</Text>
+        {/* Encabezado decorativo */}
+        <View style={styles.topRow}>
+          <View style={styles.iconCircle}>
+            <Text style={styles.iconText}>📖</Text>
+          </View>
+          <View>
+            <Text style={styles.screenTitle}>Nuevo Libro</Text>
+            <Text style={styles.screenSub}>Completa la información</Text>
+          </View>
         </View>
 
-        <Text style={styles.screenTitle}>Nuevo Libro</Text>
-        <Text style={styles.screenSubtitle}>Completa los datos del libro</Text>
+        {/* Separador */}
+        <View style={styles.divider} />
 
         {/* Campo: Título */}
-        <Text style={styles.fieldLabel}>Título</Text>
+        <Text style={styles.label}>TÍTULO</Text>
         <TextInput
           style={styles.input}
           placeholder="Ej. El Principito"
-          placeholderTextColor={COLORS.textSecondary}
+          placeholderTextColor={COLORS.textMuted}
           value={title}
           onChangeText={setTitle}
           maxLength={100}
           returnKeyType="next"
+          onSubmitEditing={() => authorRef.current?.focus()}
+          blurOnSubmit={false}
         />
 
         {/* Campo: Autor */}
-        <Text style={styles.fieldLabel}>Autor</Text>
+        <Text style={styles.label}>AUTOR</Text>
         <TextInput
+          ref={authorRef}
           style={styles.input}
           placeholder="Ej. Antoine de Saint-Exupéry"
-          placeholderTextColor={COLORS.textSecondary}
+          placeholderTextColor={COLORS.textMuted}
           value={author}
           onChangeText={setAuthor}
           maxLength={80}
           returnKeyType="next"
+          onSubmitEditing={() => pagesRef.current?.focus()}
+          blurOnSubmit={false}
         />
 
-        {/* Campo: Total de páginas — solo numérico */}
-        <Text style={styles.fieldLabel}>Total de páginas</Text>
+        {/* Campo: Páginas totales */}
+        <Text style={styles.label}>TOTAL DE PÁGINAS</Text>
         <TextInput
-          style={styles.input}
-          placeholder="Ej. 96"
-          placeholderTextColor={COLORS.textSecondary}
+          ref={pagesRef}
+          style={[styles.input, styles.inputLarge]}
+          placeholder="0"
+          placeholderTextColor={COLORS.textMuted}
           value={totalPages}
           onChangeText={setTotalPages}
-          // Forzar teclado numérico para evitar texto no numérico
           keyboardType="numeric"
           maxLength={6}
           returnKeyType="done"
           onSubmitEditing={handleSave}
+          textAlign="center"
         />
 
-        {/* Botón guardar */}
+        {/* Botón guardar — deshabilitado si el formulario no está completo */}
         <TouchableOpacity
-          style={[styles.saveBtn, loading && styles.saveBtnDisabled]}
+          style={[
+            styles.saveBtn,
+            (!isFormValid || loading) && styles.saveBtnDisabled,
+          ]}
           onPress={handleSave}
-          disabled={loading}
+          disabled={!isFormValid || loading}
           activeOpacity={0.85}
         >
           <Text style={styles.saveBtnText}>
-            {loading ? 'Guardando...' : 'Guardar libro'}
+            {loading ? 'Guardando...' : 'Registrar libro'}
           </Text>
         </TouchableOpacity>
 
-        {/* Botón cancelar */}
-        <TouchableOpacity
-          style={styles.cancelBtn}
-          onPress={() => navigation.goBack()}
-          activeOpacity={0.7}
-        >
-          <Text style={styles.cancelBtnText}>Cancelar</Text>
+        <TouchableOpacity style={styles.cancelBtn} onPress={() => navigation.goBack()}>
+          <Text style={styles.cancelText}>Cancelar</Text>
         </TouchableOpacity>
       </ScrollView>
     </KeyboardAvoidingView>
@@ -143,84 +143,85 @@ const styles = StyleSheet.create({
   },
   scroll: {
     flexGrow: 1,
-    paddingHorizontal: 28,
-    paddingTop: 24,
-    paddingBottom: 40,
-    alignItems: 'center',
+    paddingHorizontal: 24,
+    paddingTop: 28,
+    paddingBottom: 48,
   },
-  // Círculo decorativo con ícono en la parte superior
+  topRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 14,
+    marginBottom: 20,
+  },
   iconCircle: {
-    width: 72,
-    height: 72,
-    borderRadius: 36,
-    backgroundColor: COLORS.watchFace,
-    borderWidth: 2,
-    borderColor: COLORS.primary,
+    width: 52,
+    height: 52,
+    borderRadius: 26,
+    backgroundColor: COLORS.surface,
+    borderWidth: 1.5,
+    borderColor: COLORS.primary + '66',
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: 16,
   },
-  iconText: {
-    fontSize: 30,
-  },
+  iconText: { fontSize: 24 },
   screenTitle: {
     color: COLORS.text,
-    fontSize: 22,
+    fontSize: 20,
     fontWeight: '800',
-    marginBottom: 4,
   },
-  screenSubtitle: {
+  screenSub: {
     color: COLORS.textSecondary,
     fontSize: 13,
-    marginBottom: 28,
+    marginTop: 1,
   },
-  fieldLabel: {
-    alignSelf: 'flex-start',
+  divider: {
+    height: 1,
+    backgroundColor: COLORS.border,
+    marginBottom: 24,
+  },
+  label: {
     color: COLORS.textSecondary,
-    fontSize: 12,
-    fontWeight: '600',
-    letterSpacing: 1,
-    textTransform: 'uppercase',
-    marginBottom: 6,
-    marginTop: 4,
+    fontSize: 11,
+    fontWeight: '700',
+    letterSpacing: 1.5,
+    marginBottom: 8,
   },
-  // Campo de texto con estilo oscuro coherente con la paleta
   input: {
-    width: '100%',
-    backgroundColor: COLORS.watchFace,
+    backgroundColor: COLORS.surface,
     borderWidth: 1,
-    borderColor: COLORS.border,
+    borderColor: COLORS.borderLight,
     borderRadius: 12,
     paddingHorizontal: 16,
     paddingVertical: 13,
     color: COLORS.text,
     fontSize: 15,
-    marginBottom: 16,
+    marginBottom: 20,
   },
-  // Botón principal de guardado con color primario verde
+  // Campo de páginas con texto más grande para énfasis
+  inputLarge: {
+    fontSize: 28,
+    fontWeight: '800',
+    color: COLORS.primary,
+    paddingVertical: 16,
+    letterSpacing: 2,
+  },
   saveBtn: {
-    width: '100%',
     backgroundColor: COLORS.primary,
     borderRadius: 14,
-    paddingVertical: 15,
+    paddingVertical: 16,
     alignItems: 'center',
-    marginTop: 8,
-    marginBottom: 12,
+    marginTop: 4,
+    marginBottom: 14,
   },
   saveBtnDisabled: {
-    opacity: 0.5,
+    backgroundColor: COLORS.surfaceHigh,
   },
   saveBtnText: {
     color: COLORS.background,
     fontSize: 16,
     fontWeight: '800',
-    letterSpacing: 0.5,
+    letterSpacing: 0.3,
   },
-  cancelBtn: {
-    paddingVertical: 10,
-  },
-  cancelBtnText: {
-    color: COLORS.textSecondary,
-    fontSize: 14,
-  },
+  cancelBtn: { alignSelf: 'center', paddingVertical: 8 },
+  cancelText: { color: COLORS.textSecondary, fontSize: 14 },
 });

@@ -1,6 +1,5 @@
-// Pantalla de lista de libros registrados en ReadWatch
-// Muestra cada libro con barra de progreso visual y porcentaje
-import React, { useState, useCallback } from 'react';
+// BookListScreen v2 — Lista de libros con diseño premium y opción de eliminar
+import React, { useState } from 'react';
 import {
   View,
   Text,
@@ -8,88 +7,127 @@ import {
   FlatList,
   TouchableOpacity,
   StatusBar,
+  Alert,
   Dimensions,
 } from 'react-native';
-import { useFocusEffect } from '@react-navigation/native';
 import COLORS from '../constants/colors';
-import { loadData } from '../utils/storage';
+import { useBooks } from '../hooks/useBooks';
 import { calculateProgress } from '../utils/helpers';
 
 const { width } = Dimensions.get('window');
 
 /**
- * BookListScreen — Lista todos los libros registrados.
- * Usa FlatList para rendimiento eficiente con muchos libros.
- * Muestra barra de progreso visual por cada libro.
- *
- * @param {object} navigation - Objeto de navegación de React Navigation
+ * BookListScreen v2 — Lista todos los libros con tarjetas premium.
+ * Incluye badge de completado, barra de progreso y botón de eliminar.
  */
 export default function BookListScreen({ navigation }) {
-  const [books, setBooks] = useState([]);
-
-  // Recargar libros cada vez que la pantalla recibe el foco
-  useFocusEffect(
-    useCallback(() => {
-      const fetch = async () => {
-        const loaded = await loadData();
-        setBooks(loaded);
-      };
-      fetch();
-    }, [])
-  );
+  const { books, loading, removeBook } = useBooks();
+  // Controla qué tarjeta muestra el botón de eliminar al mantener presionada
+  const [expandedId, setExpandedId] = useState(null);
 
   /**
-   * renderBookList — Renderiza un ítem individual de la lista de libros.
-   * Muestra título, autor, barra de progreso y porcentaje.
-   * Permite navegar a UpdateProgress al presionar el ítem.
-   *
-   * @param {object} item - Objeto libro con id, title, author, pagesRead, totalPages
+   * Solicita confirmación antes de eliminar un libro.
+   * @param {object} book - Libro a eliminar
    */
-  const renderItem = ({ item }) => {
-    const percent = calculateProgress(item.pagesRead, item.totalPages);
-    // Calcular el ancho de la barra de progreso como porcentaje del contenedor
-    const barWidth = (percent / 100) * (width - 64);
-
-    return (
-      <TouchableOpacity
-        style={styles.card}
-        onPress={() => navigation.navigate('UpdateProgress', { book: item })}
-        activeOpacity={0.8}
-      >
-        {/* Título del libro */}
-        <Text style={styles.title} numberOfLines={1}>
-          {item.title}
-        </Text>
-        {/* Autor del libro */}
-        <Text style={styles.author} numberOfLines={1}>
-          {item.author}
-        </Text>
-
-        {/* Barra de progreso visual */}
-        <View style={styles.barBackground}>
-          <View style={[styles.barFill, { width: barWidth }]} />
-        </View>
-
-        {/* Páginas leídas y porcentaje en la misma línea */}
-        <View style={styles.statsRow}>
-          <Text style={styles.pages}>
-            {item.pagesRead} / {item.totalPages} págs.
-          </Text>
-          <Text style={styles.percent}>{percent}%</Text>
-        </View>
-      </TouchableOpacity>
+  const handleDelete = (book) => {
+    Alert.alert(
+      'Eliminar libro',
+      `¿Eliminar "${book.title}"? Esta acción no se puede deshacer.`,
+      [
+        { text: 'Cancelar', style: 'cancel' },
+        {
+          text: 'Eliminar',
+          style: 'destructive',
+          onPress: async () => {
+            await removeBook(book.id);
+            setExpandedId(null);
+          },
+        },
+      ]
     );
   };
 
   /**
-   * Componente mostrado cuando no hay libros registrados.
-   * Evita que la pantalla quede en blanco o crashee.
+   * renderItem — Tarjeta individual de cada libro.
+   * Mantener presionado muestra el botón de eliminar.
    */
+  const renderItem = ({ item }) => {
+    const percent = calculateProgress(item.pagesRead, item.totalPages);
+    const isComplete = percent >= 100;
+    const isExpanded = expandedId === item.id;
+    const barWidth = (percent / 100) * (width - 64);
+
+    return (
+      <TouchableOpacity
+        style={[styles.card, isComplete && styles.cardComplete]}
+        onPress={() => {
+          setExpandedId(null);
+          navigation.navigate('UpdateProgress', { book: item });
+        }}
+        onLongPress={() => setExpandedId(isExpanded ? null : item.id)}
+        activeOpacity={0.85}
+      >
+        {/* Encabezado: título + badge de completado */}
+        <View style={styles.cardHeader}>
+          <View style={styles.cardTitleBlock}>
+            <Text style={styles.cardTitle} numberOfLines={1}>{item.title}</Text>
+            <Text style={styles.cardAuthor} numberOfLines={1}>{item.author}</Text>
+          </View>
+          {isComplete ? (
+            <View style={styles.completeBadge}>
+              <Text style={styles.completeBadgeText}>✓</Text>
+            </View>
+          ) : (
+            <Text style={styles.percentText}>{percent}%</Text>
+          )}
+        </View>
+
+        {/* Barra de progreso visual */}
+        <View style={styles.barBg}>
+          <View
+            style={[
+              styles.barFill,
+              { width: barWidth },
+              isComplete && styles.barFillComplete,
+            ]}
+          />
+        </View>
+
+        {/* Pie de tarjeta: páginas y hint de interacción */}
+        <View style={styles.cardFooter}>
+          <Text style={styles.pagesText}>
+            {item.pagesRead} / {item.totalPages} págs.
+          </Text>
+          <Text style={styles.hintText}>
+            {isExpanded ? 'Mantén para opciones' : 'Toca para actualizar'}
+          </Text>
+        </View>
+
+        {/* Botón de eliminar — visible al mantener presionado */}
+        {isExpanded && (
+          <TouchableOpacity
+            style={styles.deleteBtn}
+            onPress={() => handleDelete(item)}
+            activeOpacity={0.8}
+          >
+            <Text style={styles.deleteBtnText}>🗑 Eliminar libro</Text>
+          </TouchableOpacity>
+        )}
+      </TouchableOpacity>
+    );
+  };
+
   const EmptyComponent = () => (
     <View style={styles.emptyContainer}>
-      <Text style={styles.emptyIcon}>📚</Text>
-      <Text style={styles.emptyText}>Sin libros registrados</Text>
-      <Text style={styles.emptyHint}>Toca "+ Libro" para comenzar</Text>
+      <Text style={styles.emptyIcon}>📖</Text>
+      <Text style={styles.emptyTitle}>Sin libros registrados</Text>
+      <Text style={styles.emptyHint}>Agrega tu primer libro para comenzar</Text>
+      <TouchableOpacity
+        style={styles.emptyBtn}
+        onPress={() => navigation.navigate('AddBook')}
+      >
+        <Text style={styles.emptyBtnText}>+ Agregar libro</Text>
+      </TouchableOpacity>
     </View>
   );
 
@@ -97,9 +135,14 @@ export default function BookListScreen({ navigation }) {
     <View style={styles.container}>
       <StatusBar barStyle="light-content" backgroundColor={COLORS.background} />
 
-      {/* Encabezado de la pantalla */}
+      {/* Encabezado con contador */}
       <View style={styles.header}>
-        <Text style={styles.headerTitle}>Mis Libros</Text>
+        <View>
+          <Text style={styles.headerTitle}>Mis Libros</Text>
+          {books.length > 0 && (
+            <Text style={styles.headerSub}>{books.length} registrado(s)</Text>
+          )}
+        </View>
         <TouchableOpacity
           style={styles.addBtn}
           onPress={() => navigation.navigate('AddBook')}
@@ -108,7 +151,11 @@ export default function BookListScreen({ navigation }) {
         </TouchableOpacity>
       </View>
 
-      {/* Lista de libros con FlatList para manejo eficiente */}
+      {/* Hint de mantener presionado */}
+      {books.length > 0 && (
+        <Text style={styles.longPressHint}>Mantén presionado para eliminar</Text>
+      )}
+
       <FlatList
         data={books}
         keyExtractor={(item) => item.id.toString()}
@@ -116,6 +163,7 @@ export default function BookListScreen({ navigation }) {
         ListEmptyComponent={EmptyComponent}
         contentContainerStyle={books.length === 0 ? styles.flatListEmpty : styles.flatList}
         showsVerticalScrollIndicator={false}
+        onScrollBeginDrag={() => setExpandedId(null)}
       />
     </View>
   );
@@ -131,104 +179,172 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: 20,
-    paddingTop: 16,
-    paddingBottom: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: COLORS.border,
+    paddingTop: 18,
+    paddingBottom: 6,
   },
   headerTitle: {
     color: COLORS.text,
-    fontSize: 20,
-    fontWeight: '700',
+    fontSize: 22,
+    fontWeight: '800',
+  },
+  headerSub: {
+    color: COLORS.textSecondary,
+    fontSize: 12,
+    marginTop: 1,
   },
   addBtn: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
+    width: 38,
+    height: 38,
+    borderRadius: 19,
     backgroundColor: COLORS.primary,
     alignItems: 'center',
     justifyContent: 'center',
   },
   addBtnText: {
     color: COLORS.background,
-    fontSize: 22,
+    fontSize: 24,
     fontWeight: '700',
-    lineHeight: 26,
+    lineHeight: 28,
+  },
+  longPressHint: {
+    color: COLORS.textMuted,
+    fontSize: 11,
+    textAlign: 'center',
+    paddingBottom: 8,
   },
   flatList: {
     paddingHorizontal: 16,
-    paddingTop: 12,
-    paddingBottom: 24,
+    paddingBottom: 30,
   },
-  // Estilo para centrar el componente vacío cuando no hay libros
   flatListEmpty: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
+    paddingHorizontal: 16,
   },
-  // Tarjeta individual de cada libro
+  // Tarjeta base de libro
   card: {
-    backgroundColor: COLORS.watchFace,
-    borderRadius: 14,
+    backgroundColor: COLORS.surface,
+    borderRadius: 16,
     padding: 16,
     marginBottom: 12,
     borderWidth: 1,
     borderColor: COLORS.border,
   },
-  title: {
+  // Tarjeta con borde verde cuando está completado
+  cardComplete: {
+    borderColor: COLORS.primary + '44',
+  },
+  cardHeader: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    justifyContent: 'space-between',
+    marginBottom: 12,
+  },
+  cardTitleBlock: {
+    flex: 1,
+    marginRight: 10,
+  },
+  cardTitle: {
     color: COLORS.text,
     fontSize: 16,
     fontWeight: '700',
     marginBottom: 2,
   },
-  author: {
+  cardAuthor: {
     color: COLORS.textSecondary,
     fontSize: 13,
-    marginBottom: 10,
   },
-  // Contenedor gris de la barra de progreso vacía
-  barBackground: {
-    height: 6,
+  percentText: {
+    color: COLORS.primary,
+    fontSize: 18,
+    fontWeight: '800',
+  },
+  // Badge circular verde para libros completados
+  completeBadge: {
+    width: 30,
+    height: 30,
+    borderRadius: 15,
+    backgroundColor: COLORS.primary,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  completeBadgeText: {
+    color: COLORS.background,
+    fontSize: 14,
+    fontWeight: '900',
+  },
+  barBg: {
+    height: 5,
     backgroundColor: COLORS.barEmpty,
     borderRadius: 3,
     marginBottom: 8,
     overflow: 'hidden',
   },
-  // Porción verde que indica el progreso actual
   barFill: {
-    height: 6,
+    height: 5,
     backgroundColor: COLORS.primary,
     borderRadius: 3,
   },
-  statsRow: {
+  barFillComplete: {
+    backgroundColor: COLORS.primary,
+  },
+  cardFooter: {
     flexDirection: 'row',
     justifyContent: 'space-between',
   },
-  pages: {
+  pagesText: {
     color: COLORS.textSecondary,
     fontSize: 12,
   },
-  percent: {
-    color: COLORS.primary,
-    fontSize: 12,
-    fontWeight: '700',
+  hintText: {
+    color: COLORS.textMuted,
+    fontSize: 11,
   },
-  // Estado vacío cuando no hay libros
+  // Botón de eliminar que aparece al mantener presionado
+  deleteBtn: {
+    marginTop: 12,
+    paddingVertical: 10,
+    borderRadius: 10,
+    backgroundColor: COLORS.danger + '22',
+    borderWidth: 1,
+    borderColor: COLORS.danger + '55',
+    alignItems: 'center',
+  },
+  deleteBtnText: {
+    color: COLORS.danger,
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  // Estado vacío
   emptyContainer: {
     alignItems: 'center',
   },
   emptyIcon: {
-    fontSize: 48,
-    marginBottom: 12,
+    fontSize: 52,
+    marginBottom: 14,
   },
-  emptyText: {
+  emptyTitle: {
     color: COLORS.text,
     fontSize: 18,
-    fontWeight: '600',
+    fontWeight: '700',
     marginBottom: 6,
   },
   emptyHint: {
     color: COLORS.textSecondary,
     fontSize: 14,
+    marginBottom: 24,
+    textAlign: 'center',
+  },
+  emptyBtn: {
+    backgroundColor: COLORS.primary,
+    borderRadius: 14,
+    paddingVertical: 13,
+    paddingHorizontal: 28,
+  },
+  emptyBtnText: {
+    color: COLORS.background,
+    fontSize: 15,
+    fontWeight: '800',
   },
 });

@@ -1,5 +1,4 @@
-// Pantalla para actualizar el progreso de páginas leídas de un libro
-// Recibe el libro por parámetros de navegación y valida el nuevo valor
+// UpdateProgressScreen v2 — Actualización de progreso con anillo SVG en tiempo real
 import React, { useState } from 'react';
 import {
   View,
@@ -15,52 +14,41 @@ import {
 import COLORS from '../constants/colors';
 import { updateProgress, calculateProgress } from '../utils/helpers';
 import { loadData } from '../utils/storage';
+import ProgressRing from '../components/ProgressRing';
 
 const { width } = Dimensions.get('window');
+const RING_SIZE = 160;
 
 /**
- * UpdateProgressScreen — Actualiza las páginas leídas de un libro.
- * Recibe el libro vía route.params.book y valida que el valor ingresado
- * no supere el total de páginas del libro.
- *
- * @param {object} navigation - Objeto de navegación de React Navigation
- * @param {object} route - Contiene route.params.book con el libro a actualizar
+ * UpdateProgressScreen v2 — Muestra un anillo SVG que se actualiza en tiempo real
+ * mientras el usuario escribe el nuevo número de páginas.
  */
 export default function UpdateProgressScreen({ navigation, route }) {
-  // Obtener el libro que fue pasado como parámetro desde BookListScreen
   const { book } = route.params;
   const [pagesInput, setPagesInput] = useState(book.pagesRead.toString());
   const [loading, setLoading] = useState(false);
 
-  // Calcular el porcentaje actual para mostrarlo en tiempo real
-  const currentPercent = calculateProgress(
-    parseInt(pagesInput, 10) || 0,
-    book.totalPages
-  );
+  const parsedPages = parseInt(pagesInput, 10) || 0;
+  const currentPercent = calculateProgress(parsedPages, book.totalPages);
+  const isComplete = currentPercent >= 100;
 
-  /**
-   * Maneja la actualización del progreso.
-   * Carga todos los libros, llama a updateProgress y regresa si fue exitoso.
-   */
+  // Color del anillo según estado: dorado si completo, verde si en progreso
+  const ringColor = isComplete ? COLORS.gold : COLORS.primary;
+
   const handleUpdate = async () => {
     if (loading) return;
     setLoading(true);
-
-    // Necesitamos cargar todos los libros para pasar el array completo a updateProgress
     const allBooks = await loadData();
     const updated = await updateProgress(book.id, pagesInput, allBooks);
-
     setLoading(false);
-
-    // Si la actualización fue exitosa (no retornó null), volver a la lista
-    if (updated) {
-      navigation.goBack();
-    }
+    if (updated) navigation.goBack();
   };
 
-  // Calcular el ancho de la barra de progreso visual
-  const barPercent = Math.min(currentPercent / 100, 1);
-  const barWidth = (width - 80) * barPercent;
+  // Accesos rápidos: +10, +25, +50 páginas
+  const quickAdd = (amount) => {
+    const newVal = Math.min(parsedPages + amount, book.totalPages);
+    setPagesInput(newVal.toString());
+  };
 
   return (
     <KeyboardAvoidingView
@@ -70,41 +58,65 @@ export default function UpdateProgressScreen({ navigation, route }) {
       <StatusBar barStyle="light-content" backgroundColor={COLORS.background} />
 
       <View style={styles.content}>
-        {/* Caratula circular mini mostrando el progreso actual */}
-        <View style={styles.watchCircle}>
-          <Text style={styles.watchPercent}>{currentPercent}%</Text>
-          <Text style={styles.watchLabel}>progreso</Text>
-        </View>
+        {/* Anillo de progreso con porcentaje actualizado en tiempo real */}
+        <ProgressRing percent={currentPercent} size={RING_SIZE} strokeWidth={9} color={ringColor}>
+          <View style={styles.ringInner}>
+            {isComplete ? (
+              <>
+                <Text style={styles.completeIcon}>✓</Text>
+                <Text style={[styles.ringPercent, { color: COLORS.gold }]}>100%</Text>
+              </>
+            ) : (
+              <>
+                <Text style={styles.ringPercent}>{currentPercent}%</Text>
+                <Text style={styles.ringLabel}>leído</Text>
+              </>
+            )}
+          </View>
+        </ProgressRing>
 
-        {/* Información del libro */}
-        <Text style={styles.bookTitle} numberOfLines={2}>
-          {book.title}
-        </Text>
+        {/* Título y autor */}
+        <Text style={styles.bookTitle} numberOfLines={2}>{book.title}</Text>
         <Text style={styles.bookAuthor}>{book.author}</Text>
 
-        {/* Barra de progreso visual */}
-        <View style={styles.barBg}>
-          <View style={[styles.barFill, { width: barWidth }]} />
-        </View>
-        <Text style={styles.pagesTotal}>de {book.totalPages} páginas</Text>
+        {/* Separador */}
+        <View style={styles.divider} />
 
-        {/* Campo para ingresar páginas leídas */}
-        <Text style={styles.fieldLabel}>Páginas leídas</Text>
+        {/* Campo de páginas */}
+        <Text style={styles.fieldLabel}>PÁGINAS LEÍDAS</Text>
         <TextInput
-          style={styles.input}
+          style={[styles.input, isComplete && styles.inputComplete]}
           value={pagesInput}
           onChangeText={setPagesInput}
-          // Teclado numérico para evitar valores no numéricos
           keyboardType="numeric"
           maxLength={6}
-          placeholder="0"
-          placeholderTextColor={COLORS.textSecondary}
           selectTextOnFocus
           returnKeyType="done"
           onSubmitEditing={handleUpdate}
         />
+        <Text style={styles.totalHint}>de {book.totalPages} páginas en total</Text>
 
-        {/* Botón para guardar el progreso */}
+        {/* Botones de adición rápida */}
+        <View style={styles.quickRow}>
+          {[10, 25, 50].map((n) => (
+            <TouchableOpacity
+              key={n}
+              style={styles.quickBtn}
+              onPress={() => quickAdd(n)}
+              disabled={parsedPages >= book.totalPages}
+            >
+              <Text style={styles.quickBtnText}>+{n}</Text>
+            </TouchableOpacity>
+          ))}
+          <TouchableOpacity
+            style={styles.quickBtn}
+            onPress={() => setPagesInput(book.totalPages.toString())}
+          >
+            <Text style={styles.quickBtnText}>Max</Text>
+          </TouchableOpacity>
+        </View>
+
+        {/* Botón guardar */}
         <TouchableOpacity
           style={[styles.updateBtn, loading && styles.btnDisabled]}
           onPress={handleUpdate}
@@ -112,15 +124,11 @@ export default function UpdateProgressScreen({ navigation, route }) {
           activeOpacity={0.85}
         >
           <Text style={styles.updateBtnText}>
-            {loading ? 'Guardando...' : 'Actualizar progreso'}
+            {loading ? 'Guardando...' : isComplete ? '¡Marcar como completado!' : 'Guardar progreso'}
           </Text>
         </TouchableOpacity>
 
-        {/* Botón para cancelar y volver */}
-        <TouchableOpacity
-          style={styles.cancelBtn}
-          onPress={() => navigation.goBack()}
-        >
+        <TouchableOpacity style={styles.cancelBtn} onPress={() => navigation.goBack()}>
           <Text style={styles.cancelText}>Cancelar</Text>
         </TouchableOpacity>
       </View>
@@ -136,111 +144,111 @@ const styles = StyleSheet.create({
   content: {
     flex: 1,
     alignItems: 'center',
-    paddingHorizontal: 28,
-    paddingTop: 32,
+    paddingHorizontal: 24,
+    paddingTop: 28,
   },
-  // Caratula pequeña que muestra el porcentaje de progreso actual
-  watchCircle: {
-    width: 110,
-    height: 110,
-    borderRadius: 55,
-    backgroundColor: COLORS.watchFace,
-    borderWidth: 3,
-    borderColor: COLORS.primary,
+  ringInner: {
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: 20,
-    shadowColor: COLORS.primary,
-    shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 0.4,
-    shadowRadius: 10,
-    elevation: 8,
   },
-  watchPercent: {
-    color: COLORS.primary,
-    fontSize: 28,
+  ringPercent: {
+    color: COLORS.text,
+    fontSize: 32,
     fontWeight: '900',
   },
-  watchLabel: {
+  ringLabel: {
     color: COLORS.textSecondary,
     fontSize: 11,
+    letterSpacing: 1,
     marginTop: 2,
+  },
+  completeIcon: {
+    fontSize: 28,
+    color: COLORS.gold,
   },
   bookTitle: {
     color: COLORS.text,
-    fontSize: 20,
+    fontSize: 18,
     fontWeight: '800',
     textAlign: 'center',
-    marginBottom: 4,
+    marginTop: 18,
+    marginBottom: 3,
     maxWidth: width - 60,
   },
   bookAuthor: {
     color: COLORS.textSecondary,
-    fontSize: 14,
+    fontSize: 13,
     marginBottom: 18,
   },
-  barBg: {
-    width: width - 80,
-    height: 8,
-    backgroundColor: COLORS.barEmpty,
-    borderRadius: 4,
-    overflow: 'hidden',
-    marginBottom: 6,
-  },
-  barFill: {
-    height: 8,
-    backgroundColor: COLORS.primary,
-    borderRadius: 4,
-  },
-  pagesTotal: {
-    color: COLORS.textSecondary,
-    fontSize: 12,
-    marginBottom: 24,
+  divider: {
+    width: '100%',
+    height: 1,
+    backgroundColor: COLORS.border,
+    marginBottom: 20,
   },
   fieldLabel: {
-    alignSelf: 'flex-start',
     color: COLORS.textSecondary,
-    fontSize: 12,
-    fontWeight: '600',
-    letterSpacing: 1,
-    textTransform: 'uppercase',
+    fontSize: 11,
+    fontWeight: '700',
+    letterSpacing: 1.5,
     marginBottom: 8,
   },
   input: {
     width: '100%',
-    backgroundColor: COLORS.watchFace,
-    borderWidth: 1,
-    borderColor: COLORS.primary,
-    borderRadius: 12,
-    paddingHorizontal: 16,
+    backgroundColor: COLORS.surface,
+    borderWidth: 1.5,
+    borderColor: COLORS.primary + '88',
+    borderRadius: 14,
     paddingVertical: 14,
     color: COLORS.primary,
-    fontSize: 28,
-    fontWeight: '800',
+    fontSize: 36,
+    fontWeight: '900',
     textAlign: 'center',
+    marginBottom: 6,
+    letterSpacing: 2,
+  },
+  inputComplete: {
+    borderColor: COLORS.gold + '88',
+    color: COLORS.gold,
+  },
+  totalHint: {
+    color: COLORS.textSecondary,
+    fontSize: 12,
+    marginBottom: 16,
+  },
+  // Botones rápidos de +10, +25, +50, Max
+  quickRow: {
+    flexDirection: 'row',
+    gap: 8,
     marginBottom: 20,
+  },
+  quickBtn: {
+    backgroundColor: COLORS.surfaceHigh,
+    borderRadius: 10,
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderWidth: 1,
+    borderColor: COLORS.borderLight,
+  },
+  quickBtnText: {
+    color: COLORS.text,
+    fontSize: 13,
+    fontWeight: '700',
   },
   updateBtn: {
     width: '100%',
     backgroundColor: COLORS.primary,
     borderRadius: 14,
-    paddingVertical: 15,
+    paddingVertical: 16,
     alignItems: 'center',
     marginBottom: 12,
   },
-  btnDisabled: {
-    opacity: 0.5,
-  },
+  btnDisabled: { opacity: 0.5 },
   updateBtnText: {
     color: COLORS.background,
-    fontSize: 16,
+    fontSize: 15,
     fontWeight: '800',
   },
-  cancelBtn: {
-    paddingVertical: 10,
-  },
-  cancelText: {
-    color: COLORS.textSecondary,
-    fontSize: 14,
-  },
+  cancelBtn: { paddingVertical: 8 },
+  cancelText: { color: COLORS.textSecondary, fontSize: 14 },
 });

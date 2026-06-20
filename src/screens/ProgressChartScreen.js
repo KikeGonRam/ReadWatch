@@ -1,6 +1,5 @@
-// Pantalla de gráfica de progreso general de todos los libros
-// Usa react-native-svg para renderizar barras de progreso visuales
-import React, { useState, useCallback } from 'react';
+// ProgressChartScreen v2 — Gráfica premium con métricas detalladas
+import React from 'react';
 import {
   View,
   Text,
@@ -9,121 +8,97 @@ import {
   StatusBar,
   Dimensions,
 } from 'react-native';
-import { useFocusEffect } from '@react-navigation/native';
-import Svg, { Rect, Text as SvgText } from 'react-native-svg';
+import Svg, { Rect, Text as SvgText, Line } from 'react-native-svg';
 import COLORS from '../constants/colors';
-import { loadData } from '../utils/storage';
+import { useBooks } from '../hooks/useBooks';
 import { calculateProgress } from '../utils/helpers';
 
 const { width } = Dimensions.get('window');
-
-// Dimensiones de la gráfica de barras
-const CHART_HEIGHT = 180;
-const CHART_PADDING_H = 32;
-const CHART_WIDTH = width - 40;
+const CHART_H = 160;
+const CHART_W = width - 40;
+const PAD_H = 24;
 
 /**
- * ProgressChartScreen — Gráfica de barras con el progreso de cada libro.
- * Usa react-native-svg (incluida en Expo 54) para renderizar las barras.
- * Colores: barra llena verde (#00FF88), vacía gris (#333333).
- *
- * @param {object} navigation - Objeto de navegación de React Navigation
+ * ProgressChartScreen v2 — Gráfica de barras SVG con línea de referencia al 50%
+ * y panel de métricas detalladas por libro.
  */
-export default function ProgressChartScreen({ navigation }) {
-  const [books, setBooks] = useState([]);
+export default function ProgressChartScreen() {
+  const { books } = useBooks();
 
-  // Cargar libros al enfocar la pantalla
-  useFocusEffect(
-    useCallback(() => {
-      const fetch = async () => {
-        const loaded = await loadData();
-        setBooks(loaded);
-      };
-      fetch();
-    }, [])
-  );
+  // Métricas globales calculadas
+  const totalPages = books.reduce((acc, b) => acc + b.totalPages, 0);
+  const totalRead = books.reduce((acc, b) => acc + b.pagesRead, 0);
+  const completed = books.filter((b) => calculateProgress(b.pagesRead, b.totalPages) >= 100).length;
+  const avgProgress =
+    books.length > 0
+      ? parseFloat(
+          (books.reduce((acc, b) => acc + calculateProgress(b.pagesRead, b.totalPages), 0) / books.length).toFixed(1)
+        )
+      : 0;
 
   /**
-   * renderProgressChart — Construye la gráfica SVG de barras de progreso.
-   * Cada barra representa un libro: barra gris = total, barra verde = leído.
-   * Las etiquetas muestran el título truncado debajo de cada barra.
-   *
-   * @returns {JSX.Element} Elemento SVG con todas las barras de progreso
+   * renderProgressChart — Gráfica SVG de barras de progreso.
+   * Incluye línea de referencia horizontal al 50% y etiquetas de porcentaje.
    */
   const renderProgressChart = () => {
     if (books.length === 0) return null;
-
-    // Calcular el ancho de cada barra según cuántos libros hay
-    const totalBars = books.length;
-    const availableWidth = CHART_WIDTH - CHART_PADDING_H * 2;
-    const barGroupWidth = availableWidth / totalBars;
-    // La barra ocupa 70% del grupo, el resto es espacio entre barras
-    const barWidth = Math.max(barGroupWidth * 0.7, 12);
+    const available = CHART_W - PAD_H * 2;
+    const groupW = available / books.length;
+    const barW = Math.max(Math.min(groupW * 0.65, 36), 10);
+    const maxH = CHART_H - 28;
 
     return (
-      <Svg width={CHART_WIDTH} height={CHART_HEIGHT + 40}>
-        {books.map((book, index) => {
-          const percent = calculateProgress(book.pagesRead, book.totalPages);
-          // Altura máxima disponible para las barras
-          const maxBarHeight = CHART_HEIGHT - 20;
-          // Altura de la barra llena proporcional al porcentaje
-          const filledHeight = (percent / 100) * maxBarHeight;
+      <Svg width={CHART_W} height={CHART_H + 28}>
+        {/* Línea de referencia al 50% */}
+        <Line
+          x1={PAD_H}
+          y1={CHART_H - maxH * 0.5}
+          x2={CHART_W - PAD_H}
+          y2={CHART_H - maxH * 0.5}
+          stroke={COLORS.borderLight}
+          strokeWidth={1}
+          strokeDasharray="4 4"
+        />
+        <SvgText
+          x={PAD_H - 2}
+          y={CHART_H - maxH * 0.5 - 3}
+          fill={COLORS.textMuted}
+          fontSize={8}
+          textAnchor="end"
+        >
+          50%
+        </SvgText>
 
-          // Posición X del centro de este grupo de barras
-          const centerX = CHART_PADDING_H + index * barGroupWidth + barGroupWidth / 2;
-          const barX = centerX - barWidth / 2;
-          // Las barras crecen hacia arriba desde la base
-          const baseY = CHART_HEIGHT;
-          const filledY = baseY - filledHeight;
+        {books.map((book, i) => {
+          const pct = calculateProgress(book.pagesRead, book.totalPages);
+          const filled = (pct / 100) * maxH;
+          const cx = PAD_H + i * groupW + groupW / 2;
+          const bx = cx - barW / 2;
+          const isComplete = pct >= 100;
+          const barColor = isComplete ? COLORS.gold : pct >= 50 ? COLORS.primary : COLORS.accent;
 
-          // Truncar título para que quepa en el espacio disponible
-          const labelMaxChars = Math.floor(barGroupWidth / 6.5);
-          const label =
-            book.title.length > labelMaxChars
-              ? book.title.substring(0, labelMaxChars) + '…'
-              : book.title;
+          // Truncar label a caracteres que quepan en el ancho del grupo
+          const maxChars = Math.max(Math.floor(groupW / 6), 3);
+          const label = book.title.length > maxChars
+            ? book.title.slice(0, maxChars) + '…'
+            : book.title;
 
           return (
             <React.Fragment key={book.id}>
-              {/* Barra gris de fondo (total de páginas) */}
-              <Rect
-                x={barX}
-                y={baseY - maxBarHeight}
-                width={barWidth}
-                height={maxBarHeight}
-                fill={COLORS.barEmpty}
-                rx={4}
-              />
-              {/* Barra verde del progreso actual (páginas leídas) */}
-              {filledHeight > 0 && (
-                <Rect
-                  x={barX}
-                  y={filledY}
-                  width={barWidth}
-                  height={filledHeight}
-                  fill={COLORS.primary}
-                  rx={4}
-                />
+              {/* Barra vacía de fondo */}
+              <Rect x={bx} y={CHART_H - maxH} width={barW} height={maxH} fill={COLORS.barEmpty} rx={4} />
+              {/* Barra de progreso coloreada */}
+              {filled > 0 && (
+                <Rect x={bx} y={CHART_H - filled} width={barW} height={filled} fill={barColor} rx={4} />
               )}
               {/* Porcentaje encima de la barra */}
-              <SvgText
-                x={centerX}
-                y={filledY - 4}
-                fill={COLORS.primary}
-                fontSize={10}
-                fontWeight="bold"
-                textAnchor="middle"
-              >
-                {percent > 0 ? `${percent}%` : ''}
-              </SvgText>
-              {/* Título del libro debajo del eje X */}
-              <SvgText
-                x={centerX}
-                y={CHART_HEIGHT + 16}
-                fill={COLORS.textSecondary}
-                fontSize={9}
-                textAnchor="middle"
-              >
+              {pct > 0 && (
+                <SvgText x={cx} y={CHART_H - filled - 5} fill={barColor} fontSize={9} fontWeight="bold" textAnchor="middle">
+                  {pct}%
+                </SvgText>
+              )}
+              {/* Título del libro bajo el eje */}
+              <SvgText x={cx} y={CHART_H + 14} fill={COLORS.textSecondary} fontSize={8} textAnchor="middle">
                 {label}
               </SvgText>
             </React.Fragment>
@@ -133,85 +108,90 @@ export default function ProgressChartScreen({ navigation }) {
     );
   };
 
-  // Calcular estadísticas globales para mostrar en las tarjetas superiores
-  const completedBooks = books.filter(
-    (b) => calculateProgress(b.pagesRead, b.totalPages) >= 100
-  ).length;
-
-  const avgProgress =
-    books.length > 0
-      ? parseFloat(
-          (
-            books.reduce(
-              (acc, b) => acc + calculateProgress(b.pagesRead, b.totalPages),
-              0
-            ) / books.length
-          ).toFixed(1)
-        )
-      : 0;
-
   return (
     <View style={styles.container}>
       <StatusBar barStyle="light-content" backgroundColor={COLORS.background} />
-      <ScrollView
-        contentContainerStyle={styles.scroll}
-        showsVerticalScrollIndicator={false}
-      >
-        <Text style={styles.screenTitle}>Progreso General</Text>
+      <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
 
-        {/* Tarjetas de estadísticas globales */}
-        <View style={styles.statsRow}>
-          <View style={styles.statCard}>
-            <Text style={styles.statValue}>{books.length}</Text>
-            <Text style={styles.statLabel}>Libros</Text>
+        <Text style={styles.screenTitle}>Mi Progreso</Text>
+
+        {/* Panel de métricas globales — 4 tarjetas */}
+        <View style={styles.metricsGrid}>
+          <View style={[styles.metricCard, styles.metricCardWide]}>
+            <Text style={styles.metricValue}>{avgProgress}%</Text>
+            <Text style={styles.metricLabel}>Promedio general</Text>
+            {/* Mini barra de progreso dentro de la tarjeta */}
+            <View style={styles.miniBarBg}>
+              <View style={[styles.miniBarFill, { width: `${avgProgress}%` }]} />
+            </View>
           </View>
-          <View style={styles.statCard}>
-            <Text style={styles.statValue}>{completedBooks}</Text>
-            <Text style={styles.statLabel}>Completos</Text>
+
+          <View style={styles.metricCard}>
+            <Text style={[styles.metricValue, { color: COLORS.gold }]}>{completed}</Text>
+            <Text style={styles.metricLabel}>Completados</Text>
           </View>
-          <View style={styles.statCard}>
-            <Text style={[styles.statValue, { color: COLORS.primary }]}>
-              {avgProgress}%
-            </Text>
-            <Text style={styles.statLabel}>Promedio</Text>
+
+          <View style={styles.metricCard}>
+            <Text style={[styles.metricValue, { color: COLORS.accent }]}>{books.length}</Text>
+            <Text style={styles.metricLabel}>Registrados</Text>
+          </View>
+
+          <View style={[styles.metricCard, styles.metricCardWide]}>
+            <Text style={styles.metricValue}>{totalRead.toLocaleString()}</Text>
+            <Text style={styles.metricLabel}>Páginas leídas de {totalPages.toLocaleString()}</Text>
           </View>
         </View>
 
-        {/* Gráfica de barras SVG o mensaje vacío */}
+        {/* Gráfica SVG o estado vacío */}
         {books.length > 0 ? (
-          <View style={styles.chartContainer}>
-            <Text style={styles.chartTitle}>Progreso por libro</Text>
+          <View style={styles.chartCard}>
+            <View style={styles.chartHeader}>
+              <Text style={styles.sectionTitle}>Progreso por libro</Text>
+              <View style={styles.legend}>
+                <View style={[styles.legendDot, { backgroundColor: COLORS.accent }]} />
+                <Text style={styles.legendText}>{'<'}50%</Text>
+                <View style={[styles.legendDot, { backgroundColor: COLORS.primary }]} />
+                <Text style={styles.legendText}>{'≥'}50%</Text>
+                <View style={[styles.legendDot, { backgroundColor: COLORS.gold }]} />
+                <Text style={styles.legendText}>100%</Text>
+              </View>
+            </View>
             {renderProgressChart()}
           </View>
         ) : (
-          // Mensaje cuando no hay libros, evita pantalla en blanco
           <View style={styles.emptyContainer}>
             <Text style={styles.emptyIcon}>📊</Text>
-            <Text style={styles.emptyText}>Sin datos para mostrar</Text>
-            <Text style={styles.emptyHint}>Registra libros para ver tu progreso</Text>
+            <Text style={styles.emptyTitle}>Sin datos aún</Text>
+            <Text style={styles.emptyHint}>Registra libros para ver tu progreso aquí</Text>
           </View>
         )}
 
-        {/* Lista detallada de cada libro con su porcentaje */}
+        {/* Lista detallada por libro */}
         {books.length > 0 && (
-          <View style={styles.detailList}>
-            <Text style={styles.chartTitle}>Detalle por libro</Text>
-            {books.map((book) => {
-              const pct = calculateProgress(book.pagesRead, book.totalPages);
-              return (
-                <View key={book.id} style={styles.detailRow}>
-                  <View style={styles.detailInfo}>
-                    <Text style={styles.detailTitle} numberOfLines={1}>
-                      {book.title}
-                    </Text>
-                    <Text style={styles.detailPages}>
-                      {book.pagesRead} / {book.totalPages} págs.
-                    </Text>
+          <View style={styles.detailCard}>
+            <Text style={styles.sectionTitle}>Detalle de libros</Text>
+            {books
+              .slice()
+              .sort((a, b) => calculateProgress(b.pagesRead, b.totalPages) - calculateProgress(a.pagesRead, a.totalPages))
+              .map((book, i) => {
+                const pct = calculateProgress(book.pagesRead, book.totalPages);
+                const isComplete = pct >= 100;
+                return (
+                  <View key={book.id} style={[styles.detailRow, i === 0 && styles.detailRowFirst]}>
+                    <View style={styles.detailRank}>
+                      <Text style={styles.detailRankText}>{i + 1}</Text>
+                    </View>
+                    <View style={styles.detailInfo}>
+                      <Text style={styles.detailTitle} numberOfLines={1}>{book.title}</Text>
+                      <View style={styles.detailBarBg}>
+                        <View style={[styles.detailBarFill, { width: `${pct}%`, backgroundColor: isComplete ? COLORS.gold : COLORS.primary }]} />
+                      </View>
+                      <Text style={styles.detailPages}>{book.pagesRead} / {book.totalPages} págs.</Text>
+                    </View>
+                    <Text style={[styles.detailPct, isComplete && { color: COLORS.gold }]}>{pct}%</Text>
                   </View>
-                  <Text style={styles.detailPercent}>{pct}%</Text>
-                </View>
-              );
-            })}
+                );
+              })}
           </View>
         )}
       </ScrollView>
@@ -220,86 +200,45 @@ export default function ProgressChartScreen({ navigation }) {
 }
 
 const styles = StyleSheet.create({
-  container: {
+  container: { flex: 1, backgroundColor: COLORS.background },
+  scroll: { paddingHorizontal: 20, paddingTop: 20, paddingBottom: 40 },
+  screenTitle: { color: COLORS.text, fontSize: 22, fontWeight: '800', marginBottom: 16 },
+
+  // Grid de métricas 2x2
+  metricsGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginBottom: 16 },
+  metricCard: {
     flex: 1,
-    backgroundColor: COLORS.background,
-  },
-  scroll: {
-    paddingHorizontal: 20,
-    paddingTop: 20,
-    paddingBottom: 40,
-  },
-  screenTitle: {
-    color: COLORS.text,
-    fontSize: 22,
-    fontWeight: '800',
-    marginBottom: 18,
-  },
-  // Fila de tarjetas de estadísticas globales
-  statsRow: {
-    flexDirection: 'row',
-    gap: 10,
-    marginBottom: 24,
-  },
-  statCard: {
-    flex: 1,
-    backgroundColor: COLORS.watchFace,
-    borderRadius: 12,
+    minWidth: '45%',
+    backgroundColor: COLORS.surface,
+    borderRadius: 14,
     borderWidth: 1,
     borderColor: COLORS.border,
-    paddingVertical: 14,
-    alignItems: 'center',
+    padding: 14,
   },
-  statValue: {
-    color: COLORS.text,
-    fontSize: 24,
-    fontWeight: '800',
-  },
-  statLabel: {
-    color: COLORS.textSecondary,
-    fontSize: 11,
-    marginTop: 2,
-  },
-  // Contenedor de la gráfica SVG
-  chartContainer: {
-    backgroundColor: COLORS.watchFace,
+  metricCardWide: { minWidth: '100%' },
+  metricValue: { color: COLORS.text, fontSize: 28, fontWeight: '900', marginBottom: 2 },
+  metricLabel: { color: COLORS.textSecondary, fontSize: 12 },
+  miniBarBg: { height: 4, backgroundColor: COLORS.barEmpty, borderRadius: 2, marginTop: 10, overflow: 'hidden' },
+  miniBarFill: { height: 4, backgroundColor: COLORS.primary, borderRadius: 2 },
+
+  // Tarjeta de gráfica SVG
+  chartCard: {
+    backgroundColor: COLORS.surface,
     borderRadius: 16,
     borderWidth: 1,
     borderColor: COLORS.border,
     padding: 16,
-    marginBottom: 20,
-    alignItems: 'center',
+    marginBottom: 14,
   },
-  chartTitle: {
-    color: COLORS.textSecondary,
-    fontSize: 12,
-    fontWeight: '600',
-    letterSpacing: 1,
-    textTransform: 'uppercase',
-    alignSelf: 'flex-start',
-    marginBottom: 12,
-  },
-  // Estado vacío cuando no hay libros
-  emptyContainer: {
-    alignItems: 'center',
-    paddingVertical: 48,
-  },
-  emptyIcon: {
-    fontSize: 48,
-    marginBottom: 12,
-  },
-  emptyText: {
-    color: COLORS.text,
-    fontSize: 18,
-    fontWeight: '600',
-    marginBottom: 6,
-  },
-  emptyHint: {
-    color: COLORS.textSecondary,
-    fontSize: 14,
-  },
-  detailList: {
-    backgroundColor: COLORS.watchFace,
+  chartHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 },
+  sectionTitle: { color: COLORS.textSecondary, fontSize: 11, fontWeight: '700', letterSpacing: 1.2, textTransform: 'uppercase' },
+  legend: { flexDirection: 'row', alignItems: 'center', gap: 4 },
+  legendDot: { width: 7, height: 7, borderRadius: 4 },
+  legendText: { color: COLORS.textSecondary, fontSize: 9 },
+
+  // Tarjeta de lista detallada
+  detailCard: {
+    backgroundColor: COLORS.surface,
     borderRadius: 16,
     borderWidth: 1,
     borderColor: COLORS.border,
@@ -308,28 +247,31 @@ const styles = StyleSheet.create({
   detailRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingVertical: 10,
-    borderBottomWidth: 1,
-    borderBottomColor: COLORS.border,
+    paddingTop: 12,
+    borderTopWidth: 1,
+    borderTopColor: COLORS.border,
+    gap: 10,
   },
-  detailInfo: {
-    flex: 1,
-    marginRight: 12,
+  detailRowFirst: { borderTopWidth: 0, paddingTop: 10 },
+  detailRank: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    backgroundColor: COLORS.barEmpty,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
-  detailTitle: {
-    color: COLORS.text,
-    fontSize: 14,
-    fontWeight: '600',
-  },
-  detailPages: {
-    color: COLORS.textSecondary,
-    fontSize: 12,
-    marginTop: 2,
-  },
-  detailPercent: {
-    color: COLORS.primary,
-    fontSize: 16,
-    fontWeight: '800',
-  },
+  detailRankText: { color: COLORS.textSecondary, fontSize: 11, fontWeight: '700' },
+  detailInfo: { flex: 1 },
+  detailTitle: { color: COLORS.text, fontSize: 13, fontWeight: '600', marginBottom: 4 },
+  detailBarBg: { height: 4, backgroundColor: COLORS.barEmpty, borderRadius: 2, marginBottom: 3, overflow: 'hidden' },
+  detailBarFill: { height: 4, borderRadius: 2 },
+  detailPages: { color: COLORS.textSecondary, fontSize: 11 },
+  detailPct: { color: COLORS.primary, fontSize: 15, fontWeight: '800' },
+
+  // Estado vacío
+  emptyContainer: { alignItems: 'center', paddingVertical: 48 },
+  emptyIcon: { fontSize: 48, marginBottom: 12 },
+  emptyTitle: { color: COLORS.text, fontSize: 18, fontWeight: '700', marginBottom: 6 },
+  emptyHint: { color: COLORS.textSecondary, fontSize: 14, textAlign: 'center' },
 });

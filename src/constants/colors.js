@@ -1,14 +1,23 @@
-// Paleta de colores global de la aplicación ReadWatch
-// Basada en estética de smartwatch: fondo oscuro con acentos verde neón
+// Paleta de colores v2 — ReadWatch
+// Estética premium de smartwatch con gradientes y estados
 const COLORS = {
-  background: '#000000',    // Fondo principal negro
-  watchFace: '#111111',     // Superficie de la caratula del reloj
-  primary: '#00FF88',       // Verde neón para elementos destacados
-  text: '#FFFFFF',          // Texto principal blanco
-  textSecondary: '#888888', // Texto secundario gris
-  barEmpty: '#333333',      // Fondo de barra de progreso vacía
-  border: '#222222',        // Bordes y separadores
-  danger: '#FF4444',        // Alertas o acciones destructivas
+  background: '#000000',
+  watchFace: '#0D0D0D',
+  surface: '#141414',
+  surfaceHigh: '#1C1C1C',
+  primary: '#00FF88',
+  primaryDim: '#00CC6A',
+  accent: '#00BFFF',
+  text: '#FFFFFF',
+  textSecondary: '#8A8A8A',
+  textMuted: '#444444',
+  barEmpty: '#1E1E1E',
+  border: '#1A1A1A',
+  borderLight: '#2A2A2A',
+  danger: '#FF4455',
+  warning: '#FFB800',
+  success: '#00FF88',
+  gold: '#FFD700',
 };
 
 export default COLORS;
