@@ -6,10 +6,11 @@ import Svg, { Rect, Text as SvgText, Line } from 'react-native-svg';
 import COLORS from '../constants/colors';
 import { useBooks } from '../hooks/useBooks';
 import { calculateProgress } from '../utils/helpers';
-import { scale, fontScale, wp } from '../utils/responsive';
+import { scale, fontScale, wp, isWatchScreen, safeCircularPad } from '../utils/responsive';
+import { getBookColor } from '../constants/bookColors';
 
 const CHART_H = scale(160);
-const CHART_W = wp(100) - scale(40);
+const CHART_W = wp(100) - (isWatchScreen ? safeCircularPad * 2 : scale(40));
 const PAD_H   = scale(24);
 
 export default function ProgressChartScreen() {
@@ -43,7 +44,7 @@ export default function ProgressChartScreen() {
           const cx       = PAD_H + i * groupW + groupW / 2;
           const bx       = cx - barW / 2;
           const isComp   = pct >= 100;
-          const barColor = isComp ? COLORS.gold : pct >= 50 ? COLORS.primary : COLORS.accent;
+          const barColor = isComp ? COLORS.gold : (book.color || getBookColor(book.id));
           const maxChars = Math.max(Math.floor(groupW / (svgFs * 0.6)), 2);
           const label    = book.title.length > maxChars ? book.title.slice(0, maxChars) + '…' : book.title;
 
@@ -138,8 +139,9 @@ export default function ProgressChartScreen() {
               .slice()
               .sort((a, b) => calculateProgress(b.pagesRead, b.totalPages) - calculateProgress(a.pagesRead, a.totalPages))
               .map((book, i) => {
-                const pct    = calculateProgress(book.pagesRead, book.totalPages);
-                const isComp = pct >= 100;
+                const pct       = calculateProgress(book.pagesRead, book.totalPages);
+                const isComp    = pct >= 100;
+                const bookColor = book.color || getBookColor(book.id);
                 const rankColor = i === 0 ? COLORS.gold : i === 1 ? '#C0C0C0' : i === 2 ? '#CD7F32' : COLORS.textMuted;
                 return (
                   <View key={book.id} style={[styles.detailRow, i === 0 && styles.detailRowFirst]}>
@@ -152,7 +154,7 @@ export default function ProgressChartScreen() {
                     <View style={styles.detailInfo}>
                       <Text style={styles.detailTitle} numberOfLines={1}>{book.title}</Text>
                       <View style={styles.detailBarBg}>
-                        <View style={[styles.detailBarFill, { width: `${pct}%`, backgroundColor: isComp ? COLORS.gold : COLORS.primary }]} />
+                        <View style={[styles.detailBarFill, { width: `${pct}%`, backgroundColor: isComp ? COLORS.gold : bookColor }]} />
                       </View>
                       <Text style={styles.detailPages}>{book.pagesRead} / {book.totalPages} págs.</Text>
                     </View>
@@ -169,7 +171,7 @@ export default function ProgressChartScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: COLORS.background },
-  scroll: { paddingHorizontal: scale(20), paddingTop: scale(18), paddingBottom: scale(40) },
+  scroll: { paddingHorizontal: isWatchScreen ? safeCircularPad : scale(20), paddingTop: scale(18), paddingBottom: scale(40) },
   screenTitle: { color: COLORS.text, fontSize: fontScale(20), fontWeight: '800', marginBottom: scale(14) },
   metricsGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: scale(10), marginBottom: scale(14) },
   metricCard: { flex: 1, minWidth: '45%', backgroundColor: COLORS.surface, borderRadius: scale(14), borderWidth: 1, borderColor: COLORS.border, padding: scale(14) },

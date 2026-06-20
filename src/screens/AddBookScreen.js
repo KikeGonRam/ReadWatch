@@ -4,7 +4,7 @@ import { View, Text, TextInput, StyleSheet, TouchableOpacity, StatusBar, ScrollV
 import { Ionicons } from '@expo/vector-icons';
 import COLORS from '../constants/colors';
 import { registerBook } from '../utils/helpers';
-import { scale, fontScale } from '../utils/responsive';
+import { scale, fontScale, isWatchScreen, safeCircularPad } from '../utils/responsive';
 
 export default function AddBookScreen({ navigation }) {
   const [title, setTitle]           = useState('');
@@ -101,7 +101,7 @@ export default function AddBookScreen({ navigation }) {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: COLORS.background },
-  scroll: { flexGrow: 1, paddingHorizontal: scale(24), paddingTop: scale(24), paddingBottom: scale(48) },
+  scroll: { flexGrow: 1, paddingHorizontal: isWatchScreen ? safeCircularPad : scale(24), paddingTop: scale(24), paddingBottom: scale(48) },
   topRow: { flexDirection: 'row', alignItems: 'center', gap: scale(12), marginBottom: scale(18) },
   iconCircle: { width: scale(50), height: scale(50), borderRadius: scale(25), backgroundColor: COLORS.surface, borderWidth: 1.5, borderColor: COLORS.primary + '66', alignItems: 'center', justifyContent: 'center' },
   screenTitle: { color: COLORS.text, fontSize: fontScale(19), fontWeight: '800' },

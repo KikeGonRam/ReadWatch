@@ -1,6 +1,7 @@
 // Lógica de negocio — registro, progreso, cálculos
 import { Alert } from 'react-native';
 import { saveData, loadData } from './storage';
+import BOOK_COLORS from '../constants/bookColors';
 
 /**
  * Calcula porcentaje de progreso con 2 decimales.
@@ -34,6 +35,9 @@ export const registerBook = async (title, author, totalPages, notes = '') => {
     return null;
   }
 
+  const existing = await loadData();
+  const colorIndex = existing.length % BOOK_COLORS.length;
+
   const newBook = {
     id: Date.now(),
     title: title.trim(),
@@ -41,10 +45,10 @@ export const registerBook = async (title, author, totalPages, notes = '') => {
     totalPages: pages,
     pagesRead: 0,
     notes: notes.trim(),
+    color: BOOK_COLORS[colorIndex],
     createdAt: new Date().toISOString(),
   };
 
-  const existing = await loadData();
   await saveData([...existing, newBook]);
   return newBook;
 };
