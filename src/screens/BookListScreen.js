@@ -1,4 +1,4 @@
-// BookListScreen v2 — Lista de libros con diseño premium y opción de eliminar
+// BookListScreen v2.1 — Responsivo para todos los tamaños
 import React, { useState } from 'react';
 import {
   View,
@@ -8,31 +8,20 @@ import {
   TouchableOpacity,
   StatusBar,
   Alert,
-  Dimensions,
 } from 'react-native';
 import COLORS from '../constants/colors';
 import { useBooks } from '../hooks/useBooks';
 import { calculateProgress } from '../utils/helpers';
+import { scale, fontScale, wp } from '../utils/responsive';
 
-const { width } = Dimensions.get('window');
-
-/**
- * BookListScreen v2 — Lista todos los libros con tarjetas premium.
- * Incluye badge de completado, barra de progreso y botón de eliminar.
- */
 export default function BookListScreen({ navigation }) {
-  const { books, loading, removeBook } = useBooks();
-  // Controla qué tarjeta muestra el botón de eliminar al mantener presionada
+  const { books, removeBook } = useBooks();
   const [expandedId, setExpandedId] = useState(null);
 
-  /**
-   * Solicita confirmación antes de eliminar un libro.
-   * @param {object} book - Libro a eliminar
-   */
   const handleDelete = (book) => {
     Alert.alert(
       'Eliminar libro',
-      `¿Eliminar "${book.title}"? Esta acción no se puede deshacer.`,
+      `¿Eliminar "${book.title}"?`,
       [
         { text: 'Cancelar', style: 'cancel' },
         {
@@ -47,27 +36,19 @@ export default function BookListScreen({ navigation }) {
     );
   };
 
-  /**
-   * renderItem — Tarjeta individual de cada libro.
-   * Mantener presionado muestra el botón de eliminar.
-   */
   const renderItem = ({ item }) => {
     const percent = calculateProgress(item.pagesRead, item.totalPages);
     const isComplete = percent >= 100;
     const isExpanded = expandedId === item.id;
-    const barWidth = (percent / 100) * (width - 64);
+    const barW = (percent / 100) * (wp(100) - scale(64));
 
     return (
       <TouchableOpacity
         style={[styles.card, isComplete && styles.cardComplete]}
-        onPress={() => {
-          setExpandedId(null);
-          navigation.navigate('UpdateProgress', { book: item });
-        }}
+        onPress={() => { setExpandedId(null); navigation.navigate('UpdateProgress', { book: item }); }}
         onLongPress={() => setExpandedId(isExpanded ? null : item.id)}
         activeOpacity={0.85}
       >
-        {/* Encabezado: título + badge de completado */}
         <View style={styles.cardHeader}>
           <View style={styles.cardTitleBlock}>
             <Text style={styles.cardTitle} numberOfLines={1}>{item.title}</Text>
@@ -82,34 +63,17 @@ export default function BookListScreen({ navigation }) {
           )}
         </View>
 
-        {/* Barra de progreso visual */}
         <View style={styles.barBg}>
-          <View
-            style={[
-              styles.barFill,
-              { width: barWidth },
-              isComplete && styles.barFillComplete,
-            ]}
-          />
+          <View style={[styles.barFill, { width: barW }, isComplete && styles.barFillComplete]} />
         </View>
 
-        {/* Pie de tarjeta: páginas y hint de interacción */}
         <View style={styles.cardFooter}>
-          <Text style={styles.pagesText}>
-            {item.pagesRead} / {item.totalPages} págs.
-          </Text>
-          <Text style={styles.hintText}>
-            {isExpanded ? 'Mantén para opciones' : 'Toca para actualizar'}
-          </Text>
+          <Text style={styles.pagesText}>{item.pagesRead} / {item.totalPages} págs.</Text>
+          <Text style={styles.hintText}>{isExpanded ? 'Mantén para opciones' : 'Toca para actualizar'}</Text>
         </View>
 
-        {/* Botón de eliminar — visible al mantener presionado */}
         {isExpanded && (
-          <TouchableOpacity
-            style={styles.deleteBtn}
-            onPress={() => handleDelete(item)}
-            activeOpacity={0.8}
-          >
+          <TouchableOpacity style={styles.deleteBtn} onPress={() => handleDelete(item)} activeOpacity={0.8}>
             <Text style={styles.deleteBtnText}>🗑 Eliminar libro</Text>
           </TouchableOpacity>
         )}
@@ -122,10 +86,7 @@ export default function BookListScreen({ navigation }) {
       <Text style={styles.emptyIcon}>📖</Text>
       <Text style={styles.emptyTitle}>Sin libros registrados</Text>
       <Text style={styles.emptyHint}>Agrega tu primer libro para comenzar</Text>
-      <TouchableOpacity
-        style={styles.emptyBtn}
-        onPress={() => navigation.navigate('AddBook')}
-      >
+      <TouchableOpacity style={styles.emptyBtn} onPress={() => navigation.navigate('AddBook')}>
         <Text style={styles.emptyBtnText}>+ Agregar libro</Text>
       </TouchableOpacity>
     </View>
@@ -134,28 +95,16 @@ export default function BookListScreen({ navigation }) {
   return (
     <View style={styles.container}>
       <StatusBar barStyle="light-content" backgroundColor={COLORS.background} />
-
-      {/* Encabezado con contador */}
       <View style={styles.header}>
         <View>
           <Text style={styles.headerTitle}>Mis Libros</Text>
-          {books.length > 0 && (
-            <Text style={styles.headerSub}>{books.length} registrado(s)</Text>
-          )}
+          {books.length > 0 && <Text style={styles.headerSub}>{books.length} registrado(s)</Text>}
         </View>
-        <TouchableOpacity
-          style={styles.addBtn}
-          onPress={() => navigation.navigate('AddBook')}
-        >
+        <TouchableOpacity style={styles.addBtn} onPress={() => navigation.navigate('AddBook')}>
           <Text style={styles.addBtnText}>+</Text>
         </TouchableOpacity>
       </View>
-
-      {/* Hint de mantener presionado */}
-      {books.length > 0 && (
-        <Text style={styles.longPressHint}>Mantén presionado para eliminar</Text>
-      )}
-
+      {books.length > 0 && <Text style={styles.longPressHint}>Mantén presionado para eliminar</Text>}
       <FlatList
         data={books}
         keyExtractor={(item) => item.id.toString()}
@@ -170,181 +119,72 @@ export default function BookListScreen({ navigation }) {
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: COLORS.background,
-  },
+  container: { flex: 1, backgroundColor: COLORS.background },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: 20,
-    paddingTop: 18,
-    paddingBottom: 6,
+    paddingHorizontal: scale(20),
+    paddingTop: scale(16),
+    paddingBottom: scale(6),
   },
-  headerTitle: {
-    color: COLORS.text,
-    fontSize: 22,
-    fontWeight: '800',
-  },
-  headerSub: {
-    color: COLORS.textSecondary,
-    fontSize: 12,
-    marginTop: 1,
-  },
+  headerTitle: { color: COLORS.text, fontSize: fontScale(20), fontWeight: '800' },
+  headerSub: { color: COLORS.textSecondary, fontSize: fontScale(12), marginTop: 1 },
   addBtn: {
-    width: 38,
-    height: 38,
-    borderRadius: 19,
+    width: scale(38),
+    height: scale(38),
+    borderRadius: scale(19),
     backgroundColor: COLORS.primary,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  addBtnText: {
-    color: COLORS.background,
-    fontSize: 24,
-    fontWeight: '700',
-    lineHeight: 28,
-  },
-  longPressHint: {
-    color: COLORS.textMuted,
-    fontSize: 11,
-    textAlign: 'center',
-    paddingBottom: 8,
-  },
-  flatList: {
-    paddingHorizontal: 16,
-    paddingBottom: 30,
-  },
-  flatListEmpty: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    paddingHorizontal: 16,
-  },
-  // Tarjeta base de libro
+  addBtnText: { color: COLORS.background, fontSize: fontScale(24), fontWeight: '700', lineHeight: scale(28) },
+  longPressHint: { color: COLORS.textMuted, fontSize: fontScale(11), textAlign: 'center', paddingBottom: scale(6) },
+  flatList: { paddingHorizontal: scale(16), paddingBottom: scale(30) },
+  flatListEmpty: { flex: 1, justifyContent: 'center', alignItems: 'center', paddingHorizontal: scale(16) },
   card: {
     backgroundColor: COLORS.surface,
-    borderRadius: 16,
-    padding: 16,
-    marginBottom: 12,
+    borderRadius: scale(16),
+    padding: scale(16),
+    marginBottom: scale(12),
     borderWidth: 1,
     borderColor: COLORS.border,
   },
-  // Tarjeta con borde verde cuando está completado
-  cardComplete: {
-    borderColor: COLORS.primary + '44',
-  },
-  cardHeader: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    justifyContent: 'space-between',
-    marginBottom: 12,
-  },
-  cardTitleBlock: {
-    flex: 1,
-    marginRight: 10,
-  },
-  cardTitle: {
-    color: COLORS.text,
-    fontSize: 16,
-    fontWeight: '700',
-    marginBottom: 2,
-  },
-  cardAuthor: {
-    color: COLORS.textSecondary,
-    fontSize: 13,
-  },
-  percentText: {
-    color: COLORS.primary,
-    fontSize: 18,
-    fontWeight: '800',
-  },
-  // Badge circular verde para libros completados
+  cardComplete: { borderColor: COLORS.primary + '44' },
+  cardHeader: { flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: scale(12) },
+  cardTitleBlock: { flex: 1, marginRight: scale(10) },
+  cardTitle: { color: COLORS.text, fontSize: fontScale(15), fontWeight: '700', marginBottom: 2 },
+  cardAuthor: { color: COLORS.textSecondary, fontSize: fontScale(12) },
+  percentText: { color: COLORS.primary, fontSize: fontScale(17), fontWeight: '800' },
   completeBadge: {
-    width: 30,
-    height: 30,
-    borderRadius: 15,
+    width: scale(28),
+    height: scale(28),
+    borderRadius: scale(14),
     backgroundColor: COLORS.primary,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  completeBadgeText: {
-    color: COLORS.background,
-    fontSize: 14,
-    fontWeight: '900',
-  },
-  barBg: {
-    height: 5,
-    backgroundColor: COLORS.barEmpty,
-    borderRadius: 3,
-    marginBottom: 8,
-    overflow: 'hidden',
-  },
-  barFill: {
-    height: 5,
-    backgroundColor: COLORS.primary,
-    borderRadius: 3,
-  },
-  barFillComplete: {
-    backgroundColor: COLORS.primary,
-  },
-  cardFooter: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-  },
-  pagesText: {
-    color: COLORS.textSecondary,
-    fontSize: 12,
-  },
-  hintText: {
-    color: COLORS.textMuted,
-    fontSize: 11,
-  },
-  // Botón de eliminar que aparece al mantener presionado
+  completeBadgeText: { color: COLORS.background, fontSize: fontScale(13), fontWeight: '900' },
+  barBg: { height: scale(5), backgroundColor: COLORS.barEmpty, borderRadius: scale(3), marginBottom: scale(8), overflow: 'hidden' },
+  barFill: { height: scale(5), backgroundColor: COLORS.primary, borderRadius: scale(3) },
+  barFillComplete: { backgroundColor: COLORS.primary },
+  cardFooter: { flexDirection: 'row', justifyContent: 'space-between' },
+  pagesText: { color: COLORS.textSecondary, fontSize: fontScale(12) },
+  hintText: { color: COLORS.textMuted, fontSize: fontScale(11) },
   deleteBtn: {
-    marginTop: 12,
-    paddingVertical: 10,
-    borderRadius: 10,
+    marginTop: scale(12),
+    paddingVertical: scale(10),
+    borderRadius: scale(10),
     backgroundColor: COLORS.danger + '22',
     borderWidth: 1,
     borderColor: COLORS.danger + '55',
     alignItems: 'center',
   },
-  deleteBtnText: {
-    color: COLORS.danger,
-    fontSize: 14,
-    fontWeight: '600',
-  },
-  // Estado vacío
-  emptyContainer: {
-    alignItems: 'center',
-  },
-  emptyIcon: {
-    fontSize: 52,
-    marginBottom: 14,
-  },
-  emptyTitle: {
-    color: COLORS.text,
-    fontSize: 18,
-    fontWeight: '700',
-    marginBottom: 6,
-  },
-  emptyHint: {
-    color: COLORS.textSecondary,
-    fontSize: 14,
-    marginBottom: 24,
-    textAlign: 'center',
-  },
-  emptyBtn: {
-    backgroundColor: COLORS.primary,
-    borderRadius: 14,
-    paddingVertical: 13,
-    paddingHorizontal: 28,
-  },
-  emptyBtnText: {
-    color: COLORS.background,
-    fontSize: 15,
-    fontWeight: '800',
-  },
+  deleteBtnText: { color: COLORS.danger, fontSize: fontScale(13), fontWeight: '600' },
+  emptyContainer: { alignItems: 'center' },
+  emptyIcon: { fontSize: scale(48), marginBottom: scale(12) },
+  emptyTitle: { color: COLORS.text, fontSize: fontScale(17), fontWeight: '700', marginBottom: scale(6) },
+  emptyHint: { color: COLORS.textSecondary, fontSize: fontScale(13), marginBottom: scale(22), textAlign: 'center' },
+  emptyBtn: { backgroundColor: COLORS.primary, borderRadius: scale(14), paddingVertical: scale(13), paddingHorizontal: scale(28) },
+  emptyBtnText: { color: COLORS.background, fontSize: fontScale(14), fontWeight: '800' },
 });

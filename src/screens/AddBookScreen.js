@@ -1,29 +1,18 @@
-// AddBookScreen v2 — Formulario premium para registrar un nuevo libro
+// AddBookScreen v2.1 — Responsivo
 import React, { useState, useRef } from 'react';
 import {
-  View,
-  Text,
-  TextInput,
-  StyleSheet,
-  TouchableOpacity,
-  StatusBar,
-  ScrollView,
-  KeyboardAvoidingView,
-  Platform,
+  View, Text, TextInput, StyleSheet, TouchableOpacity,
+  StatusBar, ScrollView, KeyboardAvoidingView, Platform,
 } from 'react-native';
 import COLORS from '../constants/colors';
 import { registerBook } from '../utils/helpers';
+import { scale, fontScale, wp } from '../utils/responsive';
 
-/**
- * AddBookScreen v2 — Formulario con diseño premium y navegación con teclado.
- * Los campos con refs permiten avanzar al siguiente con el botón "siguiente" del teclado.
- */
 export default function AddBookScreen({ navigation }) {
   const [title, setTitle] = useState('');
   const [author, setAuthor] = useState('');
   const [totalPages, setTotalPages] = useState('');
   const [loading, setLoading] = useState(false);
-  // Refs para enfocar el siguiente campo al presionar "siguiente" en el teclado
   const authorRef = useRef(null);
   const pagesRef = useRef(null);
 
@@ -32,32 +21,19 @@ export default function AddBookScreen({ navigation }) {
     setLoading(true);
     const newBook = await registerBook(title, author, totalPages);
     setLoading(false);
-    if (newBook) {
-      setTitle('');
-      setAuthor('');
-      setTotalPages('');
-      navigation.goBack();
-    }
+    if (newBook) { setTitle(''); setAuthor(''); setTotalPages(''); navigation.goBack(); }
   };
 
-  // Calcular si el formulario está completo para habilitar el botón
   const isFormValid = title.trim() && author.trim() && totalPages.trim();
 
   return (
-    <KeyboardAvoidingView
-      style={styles.container}
-      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-    >
+    <KeyboardAvoidingView style={styles.container} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
       <StatusBar barStyle="light-content" backgroundColor={COLORS.background} />
-      <ScrollView
-        contentContainerStyle={styles.scroll}
-        keyboardShouldPersistTaps="handled"
-        showsVerticalScrollIndicator={false}
-      >
-        {/* Encabezado decorativo */}
+      <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
+
         <View style={styles.topRow}>
           <View style={styles.iconCircle}>
-            <Text style={styles.iconText}>📖</Text>
+            <Text style={{ fontSize: scale(22) }}>📖</Text>
           </View>
           <View>
             <Text style={styles.screenTitle}>Nuevo Libro</Text>
@@ -65,10 +41,8 @@ export default function AddBookScreen({ navigation }) {
           </View>
         </View>
 
-        {/* Separador */}
         <View style={styles.divider} />
 
-        {/* Campo: Título */}
         <Text style={styles.label}>TÍTULO</Text>
         <TextInput
           style={styles.input}
@@ -82,7 +56,6 @@ export default function AddBookScreen({ navigation }) {
           blurOnSubmit={false}
         />
 
-        {/* Campo: Autor */}
         <Text style={styles.label}>AUTOR</Text>
         <TextInput
           ref={authorRef}
@@ -97,7 +70,6 @@ export default function AddBookScreen({ navigation }) {
           blurOnSubmit={false}
         />
 
-        {/* Campo: Páginas totales */}
         <Text style={styles.label}>TOTAL DE PÁGINAS</Text>
         <TextInput
           ref={pagesRef}
@@ -113,19 +85,13 @@ export default function AddBookScreen({ navigation }) {
           textAlign="center"
         />
 
-        {/* Botón guardar — deshabilitado si el formulario no está completo */}
         <TouchableOpacity
-          style={[
-            styles.saveBtn,
-            (!isFormValid || loading) && styles.saveBtnDisabled,
-          ]}
+          style={[styles.saveBtn, (!isFormValid || loading) && styles.saveBtnDisabled]}
           onPress={handleSave}
           disabled={!isFormValid || loading}
           activeOpacity={0.85}
         >
-          <Text style={styles.saveBtnText}>
-            {loading ? 'Guardando...' : 'Registrar libro'}
-          </Text>
+          <Text style={styles.saveBtnText}>{loading ? 'Guardando...' : 'Registrar libro'}</Text>
         </TouchableOpacity>
 
         <TouchableOpacity style={styles.cancelBtn} onPress={() => navigation.goBack()}>
@@ -137,91 +103,38 @@ export default function AddBookScreen({ navigation }) {
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: COLORS.background,
-  },
-  scroll: {
-    flexGrow: 1,
-    paddingHorizontal: 24,
-    paddingTop: 28,
-    paddingBottom: 48,
-  },
-  topRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 14,
-    marginBottom: 20,
-  },
+  container: { flex: 1, backgroundColor: COLORS.background },
+  scroll: { flexGrow: 1, paddingHorizontal: scale(24), paddingTop: scale(24), paddingBottom: scale(48) },
+  topRow: { flexDirection: 'row', alignItems: 'center', gap: scale(12), marginBottom: scale(18) },
   iconCircle: {
-    width: 52,
-    height: 52,
-    borderRadius: 26,
+    width: scale(50),
+    height: scale(50),
+    borderRadius: scale(25),
     backgroundColor: COLORS.surface,
     borderWidth: 1.5,
     borderColor: COLORS.primary + '66',
     alignItems: 'center',
     justifyContent: 'center',
   },
-  iconText: { fontSize: 24 },
-  screenTitle: {
-    color: COLORS.text,
-    fontSize: 20,
-    fontWeight: '800',
-  },
-  screenSub: {
-    color: COLORS.textSecondary,
-    fontSize: 13,
-    marginTop: 1,
-  },
-  divider: {
-    height: 1,
-    backgroundColor: COLORS.border,
-    marginBottom: 24,
-  },
-  label: {
-    color: COLORS.textSecondary,
-    fontSize: 11,
-    fontWeight: '700',
-    letterSpacing: 1.5,
-    marginBottom: 8,
-  },
+  screenTitle: { color: COLORS.text, fontSize: fontScale(19), fontWeight: '800' },
+  screenSub: { color: COLORS.textSecondary, fontSize: fontScale(12), marginTop: 1 },
+  divider: { height: 1, backgroundColor: COLORS.border, marginBottom: scale(22) },
+  label: { color: COLORS.textSecondary, fontSize: fontScale(11), fontWeight: '700', letterSpacing: 1.4, marginBottom: scale(7) },
   input: {
     backgroundColor: COLORS.surface,
     borderWidth: 1,
     borderColor: COLORS.borderLight,
-    borderRadius: 12,
-    paddingHorizontal: 16,
-    paddingVertical: 13,
+    borderRadius: scale(12),
+    paddingHorizontal: scale(16),
+    paddingVertical: scale(13),
     color: COLORS.text,
-    fontSize: 15,
-    marginBottom: 20,
+    fontSize: fontScale(15),
+    marginBottom: scale(18),
   },
-  // Campo de páginas con texto más grande para énfasis
-  inputLarge: {
-    fontSize: 28,
-    fontWeight: '800',
-    color: COLORS.primary,
-    paddingVertical: 16,
-    letterSpacing: 2,
-  },
-  saveBtn: {
-    backgroundColor: COLORS.primary,
-    borderRadius: 14,
-    paddingVertical: 16,
-    alignItems: 'center',
-    marginTop: 4,
-    marginBottom: 14,
-  },
-  saveBtnDisabled: {
-    backgroundColor: COLORS.surfaceHigh,
-  },
-  saveBtnText: {
-    color: COLORS.background,
-    fontSize: 16,
-    fontWeight: '800',
-    letterSpacing: 0.3,
-  },
-  cancelBtn: { alignSelf: 'center', paddingVertical: 8 },
-  cancelText: { color: COLORS.textSecondary, fontSize: 14 },
+  inputLarge: { fontSize: fontScale(28), fontWeight: '800', color: COLORS.primary, paddingVertical: scale(14), letterSpacing: 2 },
+  saveBtn: { backgroundColor: COLORS.primary, borderRadius: scale(14), paddingVertical: scale(15), alignItems: 'center', marginTop: scale(4), marginBottom: scale(12) },
+  saveBtnDisabled: { backgroundColor: COLORS.surfaceHigh },
+  saveBtnText: { color: COLORS.background, fontSize: fontScale(15), fontWeight: '800' },
+  cancelBtn: { alignSelf: 'center', paddingVertical: scale(8) },
+  cancelText: { color: COLORS.textSecondary, fontSize: fontScale(13) },
 });

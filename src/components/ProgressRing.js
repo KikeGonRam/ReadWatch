@@ -33,9 +33,6 @@ const ProgressRing = ({
         width={size}
         height={size}
         style={{ position: 'absolute' }}
-        // Rotar -90° para que el progreso inicie en la parte superior
-        rotation="-90"
-        origin={`${size / 2}, ${size / 2}`}
       >
         {/* Anillo de fondo gris */}
         <Circle
@@ -46,7 +43,7 @@ const ProgressRing = ({
           strokeWidth={strokeWidth}
           fill="none"
         />
-        {/* Anillo de progreso verde */}
+        {/* Anillo de progreso — rotado -90° con transform para iniciar arriba */}
         <Circle
           cx={size / 2}
           cy={size / 2}
@@ -57,6 +54,7 @@ const ProgressRing = ({
           strokeDasharray={`${circumference} ${circumference}`}
           strokeDashoffset={filled}
           strokeLinecap="round"
+          transform={`rotate(-90, ${size / 2}, ${size / 2})`}
         />
       </Svg>
       {/* Contenido central: texto, iconos, etc. */}
