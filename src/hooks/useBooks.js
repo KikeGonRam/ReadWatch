@@ -1,25 +1,23 @@
-// Hook centralizado para gestión del estado de libros
+// Hook centralizado — libros y meta diaria
 import { useState, useCallback } from 'react';
 import { useFocusEffect } from '@react-navigation/native';
-import { loadData, saveData } from '../utils/storage';
+import { loadData, saveData, loadDailyGoal, saveDailyGoal } from '../utils/storage';
 
 export const useBooks = () => {
-  const [books, setBooks] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const [books, setBooks]       = useState([]);
+  const [loading, setLoading]   = useState(true);
+  const [dailyGoal, setDailyGoal] = useState(0);
 
   const reload = useCallback(async () => {
     setLoading(true);
-    const data = await loadData();
+    const [data, goal] = await Promise.all([loadData(), loadDailyGoal()]);
     setBooks(data);
+    setDailyGoal(goal);
     setLoading(false);
   }, []);
 
-  // Envolver en callback síncrono para evitar que useFocusEffect reciba una Promise
   useFocusEffect(
-    useCallback(() => {
-      reload();
-      // Sin return: useFocusEffect no necesita cleanup aquí
-    }, [reload])
+    useCallback(() => { reload(); }, [reload])
   );
 
   const removeBook = useCallback(async (bookId) => {
@@ -28,5 +26,14 @@ export const useBooks = () => {
     await saveData(updated);
   }, [books]);
 
-  return { books, loading, reload, removeBook };
+  /**
+   * Actualiza y persiste la meta diaria de páginas.
+   * @param {number} goal
+   */
+  const updateDailyGoal = useCallback(async (goal) => {
+    setDailyGoal(goal);
+    await saveDailyGoal(goal);
+  }, []);
+
+  return { books, loading, dailyGoal, reload, removeBook, updateDailyGoal };
 };

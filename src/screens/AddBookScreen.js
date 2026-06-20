@@ -1,4 +1,4 @@
-// AddBookScreen v2.2 — Iconos vectoriales
+// AddBookScreen v3 — Campo de notas opcionales de lectura
 import React, { useState, useRef } from 'react';
 import { View, Text, TextInput, StyleSheet, TouchableOpacity, StatusBar, ScrollView, KeyboardAvoidingView, Platform } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
@@ -7,19 +7,21 @@ import { registerBook } from '../utils/helpers';
 import { scale, fontScale } from '../utils/responsive';
 
 export default function AddBookScreen({ navigation }) {
-  const [title, setTitle]       = useState('');
-  const [author, setAuthor]     = useState('');
+  const [title, setTitle]           = useState('');
+  const [author, setAuthor]         = useState('');
   const [totalPages, setTotalPages] = useState('');
-  const [loading, setLoading]   = useState(false);
+  const [notes, setNotes]           = useState('');
+  const [loading, setLoading]       = useState(false);
   const authorRef = useRef(null);
   const pagesRef  = useRef(null);
+  const notesRef  = useRef(null);
 
   const handleSave = async () => {
     if (loading) return;
     setLoading(true);
-    const newBook = await registerBook(title, author, totalPages);
+    const newBook = await registerBook(title, author, totalPages, notes);
     setLoading(false);
-    if (newBook) { setTitle(''); setAuthor(''); setTotalPages(''); navigation.goBack(); }
+    if (newBook) { setTitle(''); setAuthor(''); setTotalPages(''); setNotes(''); navigation.goBack(); }
   };
 
   const isFormValid = title.trim() && author.trim() && totalPages.trim();
@@ -29,7 +31,6 @@ export default function AddBookScreen({ navigation }) {
       <StatusBar barStyle="light-content" backgroundColor={COLORS.background} />
       <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
 
-        {/* Encabezado */}
         <View style={styles.topRow}>
           <View style={styles.iconCircle}>
             <Ionicons name="book" size={scale(24)} color={COLORS.primary} />
@@ -42,64 +43,46 @@ export default function AddBookScreen({ navigation }) {
 
         <View style={styles.divider} />
 
-        {/* Campo: Título */}
-        <Text style={styles.label}>TÍTULO</Text>
+        {/* Título */}
+        <Text style={styles.label}>TÍTULO <Text style={styles.required}>*</Text></Text>
         <View style={styles.inputWrapper}>
           <Ionicons name="text-outline" size={scale(16)} color={COLORS.textSecondary} style={styles.inputIcon} />
-          <TextInput
-            style={styles.input}
-            placeholder="Ej. El Principito"
-            placeholderTextColor={COLORS.textMuted}
-            value={title}
-            onChangeText={setTitle}
-            maxLength={100}
-            returnKeyType="next"
-            onSubmitEditing={() => authorRef.current?.focus()}
-            blurOnSubmit={false}
-          />
+          <TextInput style={styles.input} placeholder="Ej. El Principito" placeholderTextColor={COLORS.textMuted} value={title} onChangeText={setTitle} maxLength={100} returnKeyType="next" onSubmitEditing={() => authorRef.current?.focus()} blurOnSubmit={false} />
         </View>
 
-        {/* Campo: Autor */}
-        <Text style={styles.label}>AUTOR</Text>
+        {/* Autor */}
+        <Text style={styles.label}>AUTOR <Text style={styles.required}>*</Text></Text>
         <View style={styles.inputWrapper}>
           <Ionicons name="person-outline" size={scale(16)} color={COLORS.textSecondary} style={styles.inputIcon} />
-          <TextInput
-            ref={authorRef}
-            style={styles.input}
-            placeholder="Ej. Antoine de Saint-Exupéry"
-            placeholderTextColor={COLORS.textMuted}
-            value={author}
-            onChangeText={setAuthor}
-            maxLength={80}
-            returnKeyType="next"
-            onSubmitEditing={() => pagesRef.current?.focus()}
-            blurOnSubmit={false}
-          />
+          <TextInput ref={authorRef} style={styles.input} placeholder="Ej. Antoine de Saint-Exupéry" placeholderTextColor={COLORS.textMuted} value={author} onChangeText={setAuthor} maxLength={80} returnKeyType="next" onSubmitEditing={() => pagesRef.current?.focus()} blurOnSubmit={false} />
         </View>
 
-        {/* Campo: Páginas */}
-        <Text style={styles.label}>TOTAL DE PÁGINAS</Text>
+        {/* Páginas */}
+        <Text style={styles.label}>TOTAL DE PÁGINAS <Text style={styles.required}>*</Text></Text>
+        <TextInput ref={pagesRef} style={styles.inputLarge} placeholder="0" placeholderTextColor={COLORS.textMuted} value={totalPages} onChangeText={setTotalPages} keyboardType="numeric" maxLength={6} returnKeyType="next" onSubmitEditing={() => notesRef.current?.focus()} blurOnSubmit={false} textAlign="center" />
+
+        {/* Notas — campo opcional */}
+        <View style={styles.labelRow}>
+          <Ionicons name="document-text-outline" size={scale(13)} color={COLORS.textSecondary} />
+          <Text style={styles.label}> NOTAS <Text style={styles.optional}>(opcional)</Text></Text>
+        </View>
         <TextInput
-          ref={pagesRef}
-          style={styles.inputLarge}
-          placeholder="0"
+          ref={notesRef}
+          style={styles.notesInput}
+          placeholder="Sinopsis, por qué quieres leerlo, dónde lo conseguiste..."
           placeholderTextColor={COLORS.textMuted}
-          value={totalPages}
-          onChangeText={setTotalPages}
-          keyboardType="numeric"
-          maxLength={6}
-          returnKeyType="done"
-          onSubmitEditing={handleSave}
-          textAlign="center"
+          value={notes}
+          onChangeText={setNotes}
+          maxLength={300}
+          multiline
+          numberOfLines={3}
+          returnKeyType="default"
+          textAlignVertical="top"
         />
+        <Text style={styles.charCount}>{notes.length}/300</Text>
 
         {/* Botón guardar */}
-        <TouchableOpacity
-          style={[styles.saveBtn, (!isFormValid || loading) && styles.saveBtnDisabled]}
-          onPress={handleSave}
-          disabled={!isFormValid || loading}
-          activeOpacity={0.85}
-        >
+        <TouchableOpacity style={[styles.saveBtn, (!isFormValid || loading) && styles.saveBtnDisabled]} onPress={handleSave} disabled={!isFormValid || loading} activeOpacity={0.85}>
           {loading
             ? <Ionicons name="hourglass-outline" size={scale(18)} color={COLORS.background} />
             : <Ionicons name="checkmark-circle" size={scale(18)} color={COLORS.background} />
@@ -124,11 +107,17 @@ const styles = StyleSheet.create({
   screenTitle: { color: COLORS.text, fontSize: fontScale(19), fontWeight: '800' },
   screenSub: { color: COLORS.textSecondary, fontSize: fontScale(12), marginTop: 1 },
   divider: { height: 1, backgroundColor: COLORS.border, marginBottom: scale(22) },
+  labelRow: { flexDirection: 'row', alignItems: 'center', marginBottom: scale(7) },
   label: { color: COLORS.textSecondary, fontSize: fontScale(11), fontWeight: '700', letterSpacing: 1.4, marginBottom: scale(7) },
+  required: { color: COLORS.primary },
+  optional: { color: COLORS.textMuted, fontWeight: '400', letterSpacing: 0 },
   inputWrapper: { flexDirection: 'row', alignItems: 'center', backgroundColor: COLORS.surface, borderWidth: 1, borderColor: COLORS.borderLight, borderRadius: scale(12), marginBottom: scale(18) },
   inputIcon: { marginLeft: scale(14) },
   input: { flex: 1, paddingHorizontal: scale(10), paddingVertical: scale(13), color: COLORS.text, fontSize: fontScale(15) },
   inputLarge: { backgroundColor: COLORS.surface, borderWidth: 1, borderColor: COLORS.borderLight, borderRadius: scale(12), paddingVertical: scale(14), color: COLORS.primary, fontSize: fontScale(28), fontWeight: '800', letterSpacing: 2, marginBottom: scale(18) },
+  // Campo de notas multilínea
+  notesInput: { backgroundColor: COLORS.surface, borderWidth: 1, borderColor: COLORS.borderLight, borderRadius: scale(12), paddingHorizontal: scale(14), paddingVertical: scale(12), color: COLORS.text, fontSize: fontScale(14), minHeight: scale(90), marginBottom: scale(4) },
+  charCount: { color: COLORS.textMuted, fontSize: fontScale(11), textAlign: 'right', marginBottom: scale(18) },
   saveBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: scale(8), backgroundColor: COLORS.primary, borderRadius: scale(14), paddingVertical: scale(15), marginTop: scale(4), marginBottom: scale(12) },
   saveBtnDisabled: { backgroundColor: COLORS.surfaceHigh },
   saveBtnText: { color: COLORS.background, fontSize: fontScale(15), fontWeight: '800' },

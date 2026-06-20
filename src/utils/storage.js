@@ -1,44 +1,57 @@
-// Módulo de persistencia local con AsyncStorage
-// Gestiona guardar y cargar la lista de libros en el dispositivo
+// Módulo de persistencia local — libros y meta diaria
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
-// Clave usada para identificar los datos en AsyncStorage
-const STORAGE_KEY = 'readwatch_books';
+const BOOKS_KEY = 'readwatch_books';
+const GOAL_KEY  = 'readwatch_daily_goal';
 
 /**
  * Guarda el array de libros en AsyncStorage.
- * Serializa el array a JSON antes de almacenarlo.
- *
- * @param {Array} books - Array de objetos libro a persistir
- * @returns {Promise<void>}
- * Manejo de errores: try-catch con console.error si falla la escritura
+ * @param {Array} books
  */
 export const saveData = async (books) => {
   try {
-    const json = JSON.stringify(books);
-    await AsyncStorage.setItem(STORAGE_KEY, json);
-  } catch (error) {
-    // Si falla el guardado se registra el error pero no se interrumpe la app
-    console.error('Error al guardar datos en AsyncStorage:', error);
+    await AsyncStorage.setItem(BOOKS_KEY, JSON.stringify(books));
+  } catch (e) {
+    console.error('saveData error:', e);
   }
 };
 
 /**
  * Carga el array de libros desde AsyncStorage.
- * Deserializa el JSON almacenado y retorna el array.
- *
- * @returns {Promise<Array>} Array de libros; retorna [] si no existe o falla
- * Manejo de errores: try-catch con fallback a array vacío
+ * @returns {Promise<Array>} [] si falla o no existe
  */
 export const loadData = async () => {
   try {
-    const json = await AsyncStorage.getItem(STORAGE_KEY);
-    // Si no hay datos guardados, retorna array vacío como valor por defecto
-    if (json === null) return [];
-    return JSON.parse(json);
-  } catch (error) {
-    // Si falla la lectura o el parseo, retorna array vacío para no romper la app
-    console.error('Error al cargar datos desde AsyncStorage:', error);
+    const json = await AsyncStorage.getItem(BOOKS_KEY);
+    return json ? JSON.parse(json) : [];
+  } catch (e) {
+    console.error('loadData error:', e);
     return [];
+  }
+};
+
+/**
+ * Guarda la meta diaria de páginas.
+ * @param {number} goal
+ */
+export const saveDailyGoal = async (goal) => {
+  try {
+    await AsyncStorage.setItem(GOAL_KEY, String(goal));
+  } catch (e) {
+    console.error('saveDailyGoal error:', e);
+  }
+};
+
+/**
+ * Carga la meta diaria de páginas.
+ * @returns {Promise<number>} 0 si no está configurada
+ */
+export const loadDailyGoal = async () => {
+  try {
+    const val = await AsyncStorage.getItem(GOAL_KEY);
+    return val ? parseInt(val, 10) : 0;
+  } catch (e) {
+    console.error('loadDailyGoal error:', e);
+    return 0;
   }
 };
